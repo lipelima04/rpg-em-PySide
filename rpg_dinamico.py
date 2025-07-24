@@ -300,38 +300,35 @@ class Heroi(Personagem):
         self.vida_atual = min(self.vida_atual, self.vida_maxima)
         self.caos_atual = min(self.caos_atual, self.caos_maximo)
 
-    def usar_habilidade(self, habilidade_index, alvo):
+    def usar_habilidade(self, habilidade_index, alvo, logger=print):
         habilidade = CLASSES_BASE[self.classe]['habilidades'][habilidade_index]
         custo = habilidade['custo']
         
         if self.caos_atual < custo:
-            print("Caos insuficiente para usar esta habilidade!")
-            time.sleep(2)
+            logger("Caos insuficiente para usar esta habilidade!")
             return False
             
         self.caos_atual -= custo
-        print(f"\n✨ {self.nome} usa {habilidade['nome']}!")
-        time.sleep(1)
+        logger(f"\n✨ {self.nome} usa {habilidade['nome']}!")
 
         tipo_habilidade = habilidade['tipo']
         
         if tipo_habilidade == 'dano':
             multiplicador = habilidade['multiplicador'] + self.proficiencia
             dano_magico = self.forca * multiplicador
-            print(f"   Dano Mágico causado: {dano_magico:.1f}! (Ignora defesa)")
+            logger(f"   Dano Mágico causado: {dano_magico:.1f}! (Ignora defesa)")
             alvo.receber_dano(dano_magico)
         
         elif tipo_habilidade == 'buff_self':
             atributo = habilidade['atributo']
             self.buffs_ativos[atributo] = {'valor': habilidade['valor'], 'turnos_restantes': habilidade['duracao'] + 1}
-            print(f"   Seu atributo {atributo.upper()} aumentou em {habilidade['valor']:.1f} por {habilidade['duracao']} turnos!")
+            logger(f"   Seu atributo {atributo.upper()} aumentou em {habilidade['valor']:.1f} por {habilidade['duracao']} turnos!")
 
         elif tipo_habilidade == 'debuff_enemy':
             efeito = habilidade['efeito']
             alvo.debuffs_ativos[efeito] = {'dano_por_turno': habilidade['dano_por_turno'], 'turnos_restantes': habilidade['duracao'] + 1}
-            print(f"   {alvo.nome} foi afetado por {efeito.capitalize()} por {habilidade['duracao']} turnos!")
+            logger(f"   {alvo.nome} foi afetado por {efeito.capitalize()} por {habilidade['duracao']} turnos!")
 
-        time.sleep(1)
         return True
 
     def usar_pocao(self, pocao_index):

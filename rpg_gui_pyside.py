@@ -335,7 +335,7 @@ class TelaBatalha(QDialog):
             selected_item = list_widget.currentItem()
             if selected_item:
                 habilidade_index = selected_item.data(Qt.UserRole)
-                self.turno_jogador(lambda: self.jogador.usar_habilidade(habilidade_index, self.inimigo))
+                self.turno_jogador(lambda: self.jogador.usar_habilidade(habilidade_index, self.inimigo, logger=self.log))
     
     def acao_pocao(self):
         if not self.jogador.inventario_pocoes: return
@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
         self.vidas_label.setText(f"Vidas restantes: {vidas_texto}")
         if self.heroi_selecionado:
             self.hero_info_label.setText(f"Herói Ativo: {self.heroi_selecionado.nome} - {self.heroi_selecionado.classe} (Nível {self.heroi_selecionado.nivel})")
-            self.btn_masmorra.setEnabled(self.vidas_heroi > 0)
+            self.btn_masmorra.setEnabled(self.vidas_heroi > 0 and not self.masmorra_ativa)
         else:
             self.hero_info_label.setText("Nenhum herói ativo")
             self.btn_masmorra.setEnabled(False)
@@ -620,10 +620,12 @@ class MainWindow(QMainWindow):
         jogador = self.heroi_selecionado
         jogador.vida_atual = jogador.vida_maxima
         jogador.caos_atual = jogador.caos_maximo
-        jogador.buffs_ativos = {}
+        jogador.buffs_ativos.clear()
+        jogador.debuffs_ativos.clear()
         self.andar_atual = 1
         self.total_andares = 2 + jogador.nivel
         self.masmorra_ativa = True
+        self.atualizar_tela_inicial()
         QMessageBox.information(self, "Masmorra", f"Você entra na masmorra. Ela tem {self.total_andares} andares.")
         self.proximo_andar()
 
@@ -662,7 +664,7 @@ class MainWindow(QMainWindow):
             self.abrir_tela_distribuir_pontos(jogador, rpg_dinamico.PONTOS_POR_NIVEL)
             
         if self.andar_atual > self.total_andares:
-             QMessageBox.information(self, "Vitória na Masmorra!", "🏆 Você conquistou a masmorra! �")
+             QMessageBox.information(self, "Vitória na Masmorra!", "🏆 Você conquistou a masmorra! 🎉")
              self.masmorra_ativa = False
              self.atualizar_tela_inicial()
              return
@@ -679,14 +681,23 @@ class MainWindow(QMainWindow):
         jogador.perder_xp(rpg_dinamico.PENALIDADE_XP_DERROTA, logger=log_temp.append)
         
         msg = f"Você foi derrotado!\nPerdeu uma vida e sofreu penalidades de XP.\n\n" + "\n".join(log_temp)
-        QMessageBox.warning(self, "Fim da Jornada", msg)
         
-        self.masmorra_ativa = False
         self.atualizar_tela_inicial()
 
         if self.vidas_heroi <= 0:
-            QMessageBox.critical(self, "Game Over", "GAME OVER. Suas vidas acabaram. Obrigado por jogar!")
+            QMessageBox.critical(self, "Game Over", msg + "\n\nGAME OVER. Suas vidas acabaram. Obrigado por jogar!")
+            self.masmorra_ativa = False
             self.close()
+        else:
+            QMessageBox.warning(self, "Derrota", msg + "\n\nVocê vai recomeçar a masmorra do primeiro andar.")
+            self.andar_atual = 1
+            # Cura o herói para a próxima tentativa
+            jogador.vida_atual = jogador.vida_maxima
+            jogador.caos_atual = jogador.caos_maximo
+            jogador.buffs_ativos.clear()
+            jogador.debuffs_ativos.clear()
+            # Agenda o próximo andar para evitar recursão e bloqueio
+            QTimer.singleShot(100, self.proximo_andar)
 
     def lidar_com_fuga(self):
         jogador = self.heroi_selecionado
